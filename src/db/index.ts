@@ -7,9 +7,9 @@ import * as schema from "./schema";
  * Postgres access for every runtime:
  * - `npm run dev` / `next start` (Node): one pool from DATABASE_URL, which `npm run dev`
  *   points at the embedded Postgres in ./.data.
- * - Cloudflare Workers: a client per request, through the HYPERDRIVE binding when it is
+ * - Cloudflare Workers: a client per request, through the HYPERDRIVE binding (Neon) when it is
  *   configured, otherwise DATABASE_URL. Workers can't reuse a socket across requests, so
- *   pooling is Hyperdrive's job there and the per-request client is closed after the response.
+ *   pooling is Hyperdrive's job there; the runtime closes a request's sockets when it ends.
  */
 
 type Db = ReturnType<typeof drizzle<typeof schema>>;
@@ -27,8 +27,10 @@ function databaseUrl(env?: WorkerEnv): string {
 }
 
 /**
- * Supabase's shared pooler in transaction mode (port 6543) can't keep prepared statements
- * between transactions, so postgres.js must not use them there. Hyperdrive supports them.
+ * A shared pooler in transaction mode on port 6543 (Supabase's convention) can't keep
+ * prepared statements between transactions, so postgres.js must not use them there.
+ * Production uses Neon's direct connection through Hyperdrive, which supports them, so
+ * this only matters for a direct DATABASE_URL to such a pooler.
  */
 function usesTransactionPooler(url: string): boolean {
   try {
