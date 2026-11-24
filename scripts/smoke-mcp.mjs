@@ -130,9 +130,13 @@ async function rpc(method, params) {
 let out = await rpc("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "smoke", version: "1" } });
 check(out.body?.result?.serverInfo?.name === "klassdeck", "initialize", out);
 
+check(out.body.result.instructions?.includes("list_sets"), "server instructions present");
+
 out = await rpc("tools/list", {});
-const names = out.body?.result?.tools?.map((t) => t.name) ?? [];
-check(["create_set", "add_questions", "list_sets", "get_set"].every((n) => names.includes(n)), `tools/list: ${names.join(", ")}`, out);
+const tools = out.body?.result?.tools ?? [];
+const names = tools.map((t) => t.name);
+check(["create_set", "add_questions", "update_question", "list_sets", "get_set"].every((n) => names.includes(n)), `tools/list: ${names.join(", ")}`, out);
+check(tools.every((t) => t.outputSchema), "every tool declares an outputSchema");
 
 out = await rpc("tools/call", {
   name: "create_set",
@@ -157,11 +161,21 @@ out = await rpc("tools/call", { name: "create_set", arguments: { title: "Bad", q
 check(out.body?.result?.isError || out.body?.error, "invalid correct_index is rejected", out);
 
 out = await rpc("tools/call", { name: "list_sets", arguments: { query: "photo" } });
-check(out.body?.result?.structuredContent?.sets?.length === 1, "list_sets finds the set", out);
+const listed = out.body?.result?.structuredContent?.sets;
+check(listed?.length === 1 && typeof listed[0].updatedAt === "string", "list_sets finds the set", out);
 
 out = await rpc("tools/call", { name: "get_set", arguments: { set_id: created.id } });
 const got = out.body?.result?.structuredContent;
-check(got?.questions?.length === 4 && got.questions[1].correct_index === 1, "get_set returns questions", out);
+check(got?.questions?.length === 4 && got.questions[1].correct_index === 1 && got.questions[0].id, "get_set returns questions with ids", out);
+
+const fixed = { type: "true_false", prompt: "Oxygen is released during photosynthesis.", answer: true, explanation: "Water is split and O₂ is released." };
+out = await rpc("tools/call", { name: "update_question", arguments: { question_id: got.questions[2].id, question: fixed } });
+check(out.body?.result?.structuredContent?.version === 2, "update_question bumps the version", out);
+out = await rpc("tools/call", { name: "get_set", arguments: { set_id: created.id } });
+check(out.body?.result?.structuredContent?.questions?.[2]?.prompt === fixed.prompt, "update_question content is stored", out);
+
+out = await rpc("tools/call", { name: "update_question", arguments: { question_id: "does-not-exist", question: fixed } });
+check(out.body?.result?.isError, "update_question on unknown id is an error");
 
 out = await rpc("tools/call", { name: "get_set", arguments: { set_id: "does-not-exist" } });
 check(out.body?.result?.isError, "get_set on unknown id is an error");

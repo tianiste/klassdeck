@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ilike, max, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, max, or, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db } from "@/db";
 import { questions, sets } from "@/db/schema";
@@ -110,6 +110,39 @@ export async function addQuestions(
     );
     await tx.update(sets).set({ updatedAt: new Date() }).where(eq(sets.id, setId));
     return { id: setId, url: setUrl(setId), added: input.length, questionCount: existing + input.length };
+  });
+}
+
+/**
+ * Replaces one question's content (type may change). Bumps its version and
+ * clears the "verified" mark, since a person hasn't checked the new content.
+ */
+export async function updateQuestion(
+  userId: string,
+  questionId: string,
+  input: QuestionInput,
+): Promise<{ id: string; setId: string; version: number; url: string }> {
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({ setId: questions.setId })
+      .from(questions)
+      .innerJoin(sets, eq(sets.id, questions.setId))
+      .where(and(eq(questions.id, questionId), eq(sets.ownerId, userId)));
+    if (!row) throw new NotFoundError(`Question ${questionId} not found`);
+
+    const now = new Date();
+    const [updated] = await tx
+      .update(questions)
+      .set({
+        ...toStoredQuestion(input),
+        verifiedBy: null,
+        version: sql`${questions.version} + 1`,
+        updatedAt: now,
+      })
+      .where(eq(questions.id, questionId))
+      .returning({ version: questions.version });
+    await tx.update(sets).set({ updatedAt: now }).where(eq(sets.id, row.setId));
+    return { id: questionId, setId: row.setId, version: updated.version, url: setUrl(row.setId) };
   });
 }
 
