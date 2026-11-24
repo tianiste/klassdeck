@@ -14,12 +14,22 @@ Commands below are for PowerShell on Windows, run from the project folder.
 
 ## 1. Database (Neon)
 
-1. In the Neon console, open the `klassdeck` project and go to **Connect**.
-2. Copy the **direct** connection string (turn "Connection pooling" off; the host has no
-   `-pooler` in it). Hyperdrive does its own pooling, so it should not sit behind Neon's pooler.
-   It looks like
+1. Get the **direct** (non-pooled) connection string. The project is already linked in this
+   folder (`.neon`), so:
+
+   ```powershell
+   neon connection-string
+   ```
+
+   Or in the Neon console: project `klassdeck` → **Connect**, with "Connection pooling" off.
+   The host must not contain `-pooler`: Hyperdrive does its own pooling and should not sit
+   behind Neon's pooler. It looks like
    `postgresql://<user>:<password>@ep-xxxx.eu-central-1.aws.neon.tech/neondb?sslmode=require`.
-3. Keep it out of files and chat; you'll paste it into the two commands below.
+2. Keep it out of tracked files, commits and chat; you'll paste it into the commands below.
+
+Neon Free: the database sleeps after 5 minutes idle and wakes on the next request (the first
+request after a pause is slower). If the month's compute hours run out, the database is
+suspended until the next month.
 
 ## 2. Create the tables
 
@@ -27,7 +37,7 @@ Run the migrations against Neon once (and again after every schema change):
 
 ```powershell
 $env:DATABASE_URL = "<direct connection string>"
-npx drizzle-kit migrate
+npm run db:migrate
 Remove-Item Env:DATABASE_URL
 ```
 
@@ -71,6 +81,40 @@ private key").
 
 If `wrangler secret put` says the Worker doesn't exist yet, run step 5 once first, then set the
 secrets and deploy again.
+
+### Google sign-in (optional)
+
+Without these two secrets the login page offers email and password only.
+
+1. In [Google Cloud Console](https://console.cloud.google.com/): create or pick a project, then
+   **APIs & Services → OAuth consent screen**. Set the app name (Klassdeck), a support email,
+   and the authorized domain of your Worker URL. Only the `openid`, `email` and `profile` scopes
+   are needed.
+2. **APIs & Services → Credentials → Create credentials → OAuth client ID**, type
+   **Web application**.
+   - Authorized redirect URI: `<BETTER_AUTH_URL>/api/auth/callback/google`, e.g.
+     `https://klassdeck.<your-subdomain>.workers.dev/api/auth/callback/google`.
+   - For local testing you can also add `http://localhost:3000/api/auth/callback/google`.
+3. Copy the client ID and client secret and set them on the Worker:
+
+   ```powershell
+   npx wrangler secret put GOOGLE_CLIENT_ID
+   ```
+
+   ```powershell
+   npx wrangler secret put GOOGLE_CLIENT_SECRET
+   ```
+
+   For local `npm run dev`, put the same two names in `.env.local` instead (never in a tracked
+   file).
+4. While the consent screen is in "Testing", only the test users you list can sign in. Publish
+   it (**Publishing status → In production**) before students use it; with only these basic
+   scopes Google doesn't require a review.
+
+Google sign-in also works while connecting an AI: the person picks Google on Klassdeck's login
+page, and after Google they land on the consent screen and then back in the AI app. Someone who
+already signed up with a password can't then use Google with the same email (the login page
+says so), because email addresses aren't verified yet.
 
 ## 5. Deploy
 
