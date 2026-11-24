@@ -4,7 +4,9 @@ Your AI makes the study material. Klassdeck keeps it, fixes it, schedules it and
 
 Students and teachers connect their own AI (Claude, ChatGPT, …) to Klassdeck through MCP. Quizzes and flashcards the AI makes are saved to their account, where they can view (and soon edit, practice and share) them. Klassdeck never calls an LLM itself, so it can stay free.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the full plan.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the full plan, [docs/decisions.md](docs/decisions.md)
+for why things are built the way they are, and [docs/LIMITATIONS.md](docs/LIMITATIONS.md) for what
+doesn't work yet.
 
 ## Status: M1, "Save from AI"
 
