@@ -4,6 +4,36 @@ Why things are the way they are. Architecture decisions are presented to the own
 (options, trade-offs, recommendation) and recorded here once the owner has chosen.
 Newest first.
 
+## 2026-11-24: Hosting
+
+- **Context:** Klassdeck needs a public HTTPS URL so Claude.ai and ChatGPT connectors can reach
+  `/mcp`, an EU database, and costs close to zero because the product is free. It is a Next.js
+  16.4 app with Better Auth and Postgres.
+- **Options:**
+  1. Vercel (app) + Neon (database): Next.js runs natively with no code changes; Neon free sleeps
+     after 5 minutes idle and wakes on its own. Vercel's free plan is for non-commercial use.
+  2. Cloudflare Workers (app, via the OpenNext adapter) + Supabase (database): one global edge
+     platform and a familiar Supabase dashboard. Costs and changes: the Workers free plan allows
+     10 ms CPU per request and Better Auth's password hashing falls back to pure-JS scrypt there,
+     so Workers Paid (~$5/month) is likely needed; Supabase Free pauses projects after a week of
+     low activity (school holidays), so Supabase Pro (~$25/month) avoids downtime; the database
+     connection should go through Hyperdrive, the CIMD client-metadata fetch needs a Workers
+     transport, and the in-memory rate limiter must move to shared storage.
+  3. Cloudflare only as DNS/CDN in front of option 1.
+- **Recommended:** 1 (optionally with 3).
+- **Chosen by the owner:** 2, Cloudflare Workers + Supabase, with:
+  - Supabase Free for development and the pilot; move to Pro before real students rely on it.
+  - Workers free plan first: measure sign-up/login CPU; if it exceeds the limit, switch to
+    Workers Paid or a lighter hashing setup (to be decided then).
+  - The OpenNext adapter (not vinext).
+  - Prepare everything in the repo now (adapter, wrangler config, Workers changes, local Workers
+    preview); the owner creates the accounts and does the first deploy.
+- **Consequences:** Add the OpenNext adapter (`@opennextjs/cloudflare` 1.20.x supports
+  Next.js ≥16.4.5) and a `wrangler` config; adapt the database connection, CIMD transport and
+  rate limiting for Workers; local `npm run dev` stays on embedded Postgres. Revisit if CPU
+  limits or adapter gaps block features. Sources: Cloudflare Workers limits, Supabase project
+  pausing docs, Neon pricing (all checked 2026-11-24); `npm view @opennextjs/cloudflare`.
+
 ## 2026-11-24: Local development database
 
 - **Context:** Developers need Postgres locally without installing it or running Docker. The first
