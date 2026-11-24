@@ -21,6 +21,13 @@ export const createAuthOptions = () => ({
   // `/token` belongs to the JWT plugin and would mint session JWTs with the
   // same key as MCP access tokens; MCP clients use /oauth2/token instead.
   disabledPaths: ["/token"],
+  // Stored in Postgres so limits hold across Worker isolates (memory is per isolate).
+  // Better Auth enables rate limiting in production only.
+  rateLimit: { storage: "database" },
+  advanced: {
+    // Cloudflare sets this header on every request and overwrites any client value.
+    ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] },
+  },
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
