@@ -52,7 +52,13 @@ service-data/
 AGENTS.md
 CLAUDE.md
 PROGRESS.md
+.mcp.json
+skills-lock.json
+/.claude/skills/
 
 # Cloudflare / OpenNext build output
 /.open-next/
 /.wrangler/
+
+# Neon CLI project link (org/project/branch ids)
+.neon
