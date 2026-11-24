@@ -20,11 +20,20 @@ function safeNext(next: string | null): string {
   return next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
 }
 
-export function LoginForm() {
+/** Messages for errors Better Auth appends to the URL after a failed Google sign-in. */
+function socialError(code: string | null): string | null {
+  if (!code) return null;
+  if (code === "account_not_linked") {
+    return "This email already has a Klassdeck account with a password. Log in with your password instead.";
+  }
+  return "Google sign-in didn't work. Try again, or use your email and password.";
+}
+
+export function LoginForm({ google }: { google: boolean }) {
   const params = useSearchParams();
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "signup">(params.get("mode") === "signup" ? "signup" : "login");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(socialError(params.get("error")));
   const [pending, setPending] = useState(false);
   // The OAuth authorize endpoint sends people here with a signed query (client_id, sig, ...).
   const connectingAi = params.has("client_id") && params.has("sig");
@@ -52,6 +61,26 @@ export function LoginForm() {
     router.refresh();
   }
 
+  async function onGoogle() {
+    setError(null);
+    setPending(true);
+    // While connecting an AI, the auth client adds the signed OAuth query to this request
+    // and Better Auth resumes the connect flow after Google's callback (consent → AI app).
+    // On failure Google's callback comes back to this same page, query included.
+    const here = window.location.pathname + window.location.search;
+    const res = await authClient.signIn.social({
+      provider: "google",
+      callbackURL: safeNext(params.get("next")),
+      errorCallbackURL: here,
+    });
+    if (res.error) {
+      setError(res.error.message ?? "Something went wrong.");
+      setPending(false);
+      return;
+    }
+    followRedirect(res.data);
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-semibold tracking-tight">
@@ -62,7 +91,21 @@ export function LoginForm() {
           Log in to connect your AI to Klassdeck.
         </p>
       )}
-      <form onSubmit={onSubmit} className="mt-6 space-y-3">
+      {google && (
+        <>
+          <button
+            type="button"
+            onClick={onGoogle}
+            disabled={pending}
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 py-2.5 font-medium hover:border-accent disabled:opacity-60"
+          >
+            <GoogleMark />
+            Continue with Google
+          </button>
+          <p className="mt-4 text-center text-xs text-muted">or with email</p>
+        </>
+      )}
+      <form onSubmit={onSubmit} className={google ? "mt-4 space-y-3" : "mt-6 space-y-3"}>
         {mode === "signup" && (
           <Field label="Name" name="name" type="text" autoComplete="name" />
         )}
@@ -111,5 +154,17 @@ function Field(props: { label: string } & React.InputHTMLAttributes<HTMLInputEle
         className="mt-1 w-full rounded-lg border border-line bg-surface px-3 py-2 outline-none focus:border-accent"
       />
     </label>
+  );
+}
+
+/** Google's "G" mark, as its sign-in branding guidelines ask for on the button. */
+function GoogleMark() {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 48 48">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
   );
 }
