@@ -27,11 +27,11 @@ One TypeScript codebase. The web app and the MCP server live in the same deploym
 |---|---|---|
 | Web app | **Next.js** (App Router) + React | One project for pages, API, and the MCP endpoint |
 | Styling | Tailwind CSS | Fast to build |
-| Database | **PostgreSQL** (Neon or Supabase, EU region) | Relational data (classes ↔ sets ↔ questions); free tier; EU for GDPR |
+| Database | **PostgreSQL** (Neon or Supabase, EU region); locally `embedded-postgres` | Relational data (classes ↔ sets ↔ questions); free tier; EU for GDPR. Embedded Postgres gives real Postgres locally with no Docker |
 | ORM | Drizzle | Typed, lightweight, simple migrations |
-| Auth | Better Auth (or Auth.js): Google + Microsoft sign-in, email magic link | Schools mostly use Google/Microsoft accounts |
-| MCP server | `@modelcontextprotocol/sdk`, **Streamable HTTP** transport at `/mcp` | Remote connector that Claude/ChatGPT can add by URL |
-| MCP auth | OAuth 2.1, per the MCP authorization spec | Required for remote connectors. The user clicks "Connect" and logs in to Klassdeck |
+| Auth | Better Auth: email + password now; Google + Microsoft sign-in later | Schools mostly use Google/Microsoft accounts |
+| MCP server | `@modelcontextprotocol/server` (SDK v2), **Streamable HTTP** at `/mcp` | Serves both the 2026-07-28 spec and 2025-era clients from one handler |
+| MCP auth | Better Auth `mcp()` plugin as the OAuth 2.1 server, plus `cimd()` for Client ID Metadata Documents; dynamic client registration kept as a fallback for older clients | Required for remote connectors. The user clicks "Connect", logs in to Klassdeck and approves. Tokens are audience-bound to `/mcp` |
 | Spaced repetition | `ts-fsrs` (FSRS algorithm, same family Anki uses) | Proven scheduling, no AI needed |
 | Validation | Zod | One schema shared by MCP tool input, the API, and the import format |
 | Hosting | Vercel (app) + Neon (DB) | Free tier is enough for early stage |
