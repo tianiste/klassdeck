@@ -44,6 +44,27 @@ Newest first.
   ~41 ms CPU per hash, 4× the free plan's 10 ms. Not changed; the owner decides between Workers
   Paid and lighter hashing.
 
+## 2026-11-24: Database on Neon instead of Supabase
+
+- **Context:** The owner's Supabase account already had two active free projects (the free
+  limit), so a Klassdeck project would have meant pausing another app or paying for Pro.
+- **Options:**
+  1. Pause another Supabase project: free, but that app goes offline.
+  2. Supabase Pro (~$25/month): no limit, never pauses.
+  3. Neon Free: no project-count problem; compute sleeps after 5 minutes idle and wakes on the
+     next connection instead of pausing for good after a week; works with Cloudflare Hyperdrive
+     the same way, so no code change.
+  4. A schema inside another app's Supabase project: shares space, password and downtime.
+- **Recommended:** 3.
+- **Chosen by the owner:** 3, Neon. App hosting stays on Cloudflare Workers (see "Hosting").
+- **Consequences:** Neon project `klassdeck` (`dark-wildflower-99678854`) in `aws-eu-central-1`
+  (Frankfurt), Free plan, linked through the git-ignored `.neon` file. Per Neon's guidance:
+  Hyperdrive points at the **direct** (non-pooled) connection string, since Hyperdrive pools
+  itself; migrations also use the direct string; the app keeps postgres.js and Drizzle. On the
+  Free plan, running out of CU-hours suspends the database until the next month. Sources: Neon
+  `neon` and `neon-postgres` agent skills (commit `d3601d9`, 2026-11-24).
+- **Supersedes:** the Supabase part of "Hosting" below.
+
 ## 2026-11-24: Hosting
 
 - **Context:** Klassdeck needs a public HTTPS URL so Claude.ai and ChatGPT connectors can reach
