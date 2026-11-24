@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "klassdeck",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-11-23",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      // Self-reference the adapter uses for internal requests; must match "name".
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "klassdeck"
+    }
+  ],
+  "observability": { "enabled": true },
+  // Secrets (BETTER_AUTH_SECRET, BETTER_AUTH_URL) are set with `wrangler secret put`,
+  // and locally in .dev.vars. See docs/DEPLOY.md.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      // Replace with the id from `npx wrangler hyperdrive create` (see docs/DEPLOY.md).
+      "id": "00000000000000000000000000000000",
+      // Used only by `npm run preview`; overridden by
+      // CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE.
+      "localConnectionString": "postgresql://postgres:postgres@127.0.0.1:5433/klassdeck"
+    }
+  ]
+}

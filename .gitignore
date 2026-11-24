@@ -52,3 +52,7 @@ service-data/
 AGENTS.md
 CLAUDE.md
 PROGRESS.md
+
+# Cloudflare / OpenNext build output
+/.open-next/
+/.wrangler/
