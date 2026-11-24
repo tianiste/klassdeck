@@ -15,7 +15,7 @@
     "smoke": "node scripts/smoke-mcp.mjs",
     "cf:build": "opennextjs-cloudflare build",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
+    "deploy": "node scripts/deploy.mjs"
   },
   "dependencies": {
     "@better-auth/cimd": "1.7.28",
