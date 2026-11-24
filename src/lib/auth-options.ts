@@ -2,7 +2,7 @@ import type { BetterAuthOptions } from "better-auth";
 import { jwt } from "better-auth/plugins";
 import { mcp } from "@better-auth/mcp";
 import { cimd } from "@better-auth/cimd";
-import { fetchClientMetadataResource } from "@better-auth/cimd/node";
+import { fetchClientMetadataResource } from "./cimd-transport";
 
 /** Public origin of the app, e.g. http://localhost:3000 or https://klassdeck.com */
 export const baseUrl = (process.env.BETTER_AUTH_URL ?? "http://localhost:3000").replace(/\/$/, "");
