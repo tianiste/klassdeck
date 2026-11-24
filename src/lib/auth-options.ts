@@ -11,6 +11,17 @@ export const baseUrl = (process.env.BETTER_AUTH_URL ?? "http://localhost:3000").
 export const mcpResource = `${baseUrl}/mcp`;
 
 /**
+ * Google sign-in, enabled only when both values are set (production secrets, or
+ * .env.local). Without them local dev and the smoke test use email and password only.
+ * A function, because on Cloudflare Workers the env is only filled in per request.
+ */
+export function googleCredentials(): { clientId: string; clientSecret: string } | null {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  return clientId && clientSecret ? { clientId, clientSecret } : null;
+}
+
+/**
  * Auth configuration shared by the running app (src/lib/auth.ts) and the
  * schema generator (auth.gen.ts). Kept free of the database so the CLI can load it.
  * A function, so every betterAuth() call gets fresh plugin instances (plugins
@@ -32,6 +43,16 @@ export const createAuthOptions = () => ({
     enabled: true,
     minPasswordLength: 8,
   },
+  // Google sign-in also continues an MCP connect flow: the oauth-provider plugin keeps
+  // the signed authorize query in the social sign-in state and resumes authorization
+  // when Google's callback creates the session. A Google identity is never linked
+  // into an existing account whose email isn't verified (Better Auth's default), so
+  // nobody can pre-register a victim's address with a password and take over their
+  // Google sign-in.
+  socialProviders: (() => {
+    const google = googleCredentials();
+    return google ? { google: { ...google, prompt: "select_account" as const } } : {};
+  })(),
   plugins: [
     jwt({ disableSettingJwtHeader: true }),
     mcp({
