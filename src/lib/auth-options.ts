@@ -37,6 +37,9 @@ export const createAuthOptions = () => ({
   rateLimit: { storage: "database" },
   advanced: {
     // Cloudflare sets this header on every request and overwrites any client value.
+    // Production runs only on Cloudflare Workers (docs/DEPLOY.md). Running `next start`
+    // behind another proxy is unsupported: add that proxy's trusted, overwritten
+    // client-IP header here first, or every client shares one rate-limit bucket.
     ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] },
   },
   emailAndPassword: {
