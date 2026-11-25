@@ -27,7 +27,11 @@ The database tables already exist on Neon (see "2. Create the tables" below to r
    - `DATABASE_URL`: Neon's **pooled** connection string (`neon connection-string --pooled`). The
      app runs on short-lived serverless instances, so it goes through Neon's connection pooler.
    - `BETTER_AUTH_URL`: the site's address, e.g. `https://klassdeck.vercel.app` (no trailing slash).
-   - `BETTER_AUTH_SECRET`: a new random value (`openssl rand -base64 32`).
+   - `BETTER_AUTH_SECRET`: a random value (`openssl rand -base64 32`). Better Auth encrypts its
+     token-signing keys (the `jwks` table) with this secret, so every deployment that shares a
+     database must use the same value. If the secret changes on a database that already has keys,
+     delete the rows in `jwks` (new keys are created on the next request) and expect everyone to
+     sign in again and AI connectors to reconnect.
    - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`: the same Google OAuth client as before.
 
    ```powershell
