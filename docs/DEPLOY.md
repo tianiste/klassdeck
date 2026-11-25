@@ -136,14 +136,18 @@ The free plan allows a Worker of at most 3 MB compressed. The build is about 2.9
 
 ## 6. Check it
 
-1. Open `https://<your worker url>/` and sign up.
+1. Open `https://<your worker url>/login` and sign in with Google.
 2. `https://<your worker url>/.well-known/oauth-protected-resource/mcp` should return JSON whose
    `resource` is `https://<your worker url>/mcp`.
-3. Run the smoke test against it (it creates a test user named `smoke-…@example.test`):
+3. Run the smoke test against it:
 
    ```powershell
    node scripts/smoke-mcp.mjs https://<your worker url>
    ```
+
+   With email sign-in off it can't sign in, so it checks discovery, the 401 challenge, client
+   registration and the redirect to `/login`, then prints "Partial pass". The sign-in, consent,
+   token and tool steps are covered by connecting Claude.ai in step 7.
 
 ## 7. Connect Claude.ai
 

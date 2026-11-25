@@ -4,6 +4,11 @@
 //
 //   npm run dev            (in another terminal)
 //   node scripts/smoke-mcp.mjs [baseUrl]
+//
+// Against a server with email sign-in off (the deployed Worker is Google-only), it
+// can't create a signed-in user, so it runs the checks that need no user (discovery,
+// the 401 challenge, client registration, authorize sending people to /login) and
+// says the tool checks were skipped.
 import { createHash, randomBytes } from "node:crypto";
 
 const BASE = (process.argv[2] ?? "http://localhost:3000").replace(/\/$/, "");
@@ -42,7 +47,14 @@ function check(cond, msg, extra) {
 // 1. Test user
 const email = `smoke-${Date.now()}@example.test`;
 let r = await call("/api/auth/sign-up/email", json({ email, password: "smoke-test-pass", name: "Smoke Test" }));
-check(r.ok, "sign up test user", await r.clone().text());
+const signUpBody = await r.clone().text();
+const emailLogin = r.ok;
+if (emailLogin) {
+  check(true, "sign up test user");
+} else {
+  check(r.status === 400 && /EMAIL_PASSWORD(_SIGN_UP)?_DISABLED/.test(signUpBody), "sign-up refused (email sign-in is off)", signUpBody);
+  console.log("note email sign-in is off on this server; checks that need a signed-in user will be skipped");
+}
 
 // 2. Unauthenticated MCP call gets a challenge pointing at resource metadata
 r = await fetch(RESOURCE, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
@@ -66,6 +78,21 @@ r = await call(as.registration_endpoint, json({
 }));
 const client = await r.json();
 check(r.ok && client.client_id, "register client", client);
+
+if (!emailLogin) {
+  // Without a session, authorize must send the person to Klassdeck's login page.
+  const authUrl = new URL(as.authorization_endpoint);
+  Object.entries({
+    response_type: "code", client_id: client.client_id, redirect_uri: REDIRECT, scope: "openid profile offline_access",
+    state: "xyz", code_challenge: b64url(createHash("sha256").update("v").digest()), code_challenge_method: "S256", resource: RESOURCE,
+  }).forEach(([k, v]) => authUrl.searchParams.set(k, v));
+  r = await call(authUrl.toString());
+  const loginLoc = r.headers.get("location") ?? (await r.clone().json().catch(() => ({}))).url ?? "";
+  check(loginLoc.includes("/login") && loginLoc.includes("sig="), "authorize sends a signed-out user to /login", `${r.status} ${loginLoc}`);
+  console.log("\nPartial pass: sign-in, consent, token and MCP tool checks were skipped (no email sign-in on this server).");
+  console.log("Check those by connecting a real AI and signing in with Google (docs/DEPLOY.md, step 7).");
+  process.exit(0);
+}
 
 // 4. Authorize with PKCE (user already signed in via cookie)
 const verifier = b64url(randomBytes(32));
