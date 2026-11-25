@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { googleCredentials } from "@/lib/auth-options";
+import { emailPasswordEnabled, googleCredentials } from "@/lib/auth-options";
 import { LoginForm } from "./login-form";
 
 export const metadata = { title: "Log in · Klassdeck" };
@@ -11,7 +11,7 @@ export default async function LoginPage() {
   return (
     <div className="mx-auto max-w-sm py-6">
       <Suspense>
-        <LoginForm google={googleCredentials() !== null} />
+        <LoginForm google={googleCredentials() !== null} emailPassword={emailPasswordEnabled()} />
       </Suspense>
     </div>
   );

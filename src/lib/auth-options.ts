@@ -22,6 +22,16 @@ export function googleCredentials(): { clientId: string; clientSecret: string } 
 }
 
 /**
+ * Email and password sign-in, on unless EMAIL_PASSWORD_LOGIN is "off". The deployed
+ * Worker turns it off (wrangler.jsonc `vars`): password hashing needs ~40 ms of CPU and
+ * the Workers free plan allows 10 ms per request, so production is Google-only for now.
+ * This disables the endpoints, not just the form.
+ */
+export function emailPasswordEnabled(): boolean {
+  return process.env.EMAIL_PASSWORD_LOGIN !== "off";
+}
+
+/**
  * Auth configuration shared by the running app (src/lib/auth.ts) and the
  * schema generator (auth.gen.ts). Kept free of the database so the CLI can load it.
  * A function, so every betterAuth() call gets fresh plugin instances (plugins
@@ -43,7 +53,7 @@ export const createAuthOptions = () => ({
     ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] },
   },
   emailAndPassword: {
-    enabled: true,
+    enabled: emailPasswordEnabled(),
     minPasswordLength: 8,
   },
   // Google sign-in also continues an MCP connect flow: the oauth-provider plugin keeps

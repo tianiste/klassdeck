@@ -16,6 +16,11 @@
     }
   ],
   "observability": { "enabled": true },
+  "vars": {
+    // Google-only sign-in in production for now: password hashing needs ~40 ms of CPU and
+    // the Workers free plan allows 10 ms per request. .dev.vars sets "on" for local preview.
+    "EMAIL_PASSWORD_LOGIN": "off"
+  },
   // Secrets (BETTER_AUTH_SECRET, BETTER_AUTH_URL) are set with `wrangler secret put`,
   // and locally in .dev.vars. See docs/DEPLOY.md.
   "hyperdrive": [

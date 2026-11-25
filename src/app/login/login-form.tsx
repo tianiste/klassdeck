@@ -29,7 +29,7 @@ function socialError(code: string | null): string | null {
   return "Google sign-in didn't work. Try again, or use your email and password.";
 }
 
-export function LoginForm({ google }: { google: boolean }) {
+export function LoginForm({ google, emailPassword }: { google: boolean; emailPassword: boolean }) {
   const params = useSearchParams();
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "signup">(params.get("mode") === "signup" ? "signup" : "login");
@@ -102,43 +102,53 @@ export function LoginForm({ google }: { google: boolean }) {
             <GoogleMark />
             Continue with Google
           </button>
-          <p className="mt-4 text-center text-xs text-muted">or with email</p>
+          {emailPassword && <p className="mt-4 text-center text-xs text-muted">or with email</p>}
         </>
       )}
-      <form onSubmit={onSubmit} className={google ? "mt-4 space-y-3" : "mt-6 space-y-3"}>
-        {mode === "signup" && (
-          <Field label="Name" name="name" type="text" autoComplete="name" />
-        )}
-        <Field label="Email" name="email" type="email" autoComplete="email" />
-        <Field
-          label="Password"
-          name="password"
-          type="password"
-          autoComplete={mode === "signup" ? "new-password" : "current-password"}
-          minLength={8}
-        />
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={pending}
-          className="w-full rounded-lg bg-accent px-4 py-2.5 font-medium text-white hover:opacity-90 disabled:opacity-60"
-        >
-          {pending ? "…" : mode === "signup" ? "Create account" : "Log in"}
-        </button>
-      </form>
-      <p className="mt-4 text-sm text-muted">
-        {mode === "signup" ? "Already have an account? " : "New to Klassdeck? "}
-        <button
-          type="button"
-          className="font-medium text-accent"
-          onClick={() => {
-            setMode(mode === "signup" ? "login" : "signup");
-            setError(null);
-          }}
-        >
-          {mode === "signup" ? "Log in" : "Create an account"}
-        </button>
-      </p>
+      {!google && !emailPassword && (
+        <p className="mt-6 rounded-lg border border-line bg-surface px-3 py-2 text-sm">
+          Sign-in isn&apos;t available right now. Please try again later.
+        </p>
+      )}
+      {!emailPassword && error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+      {emailPassword && (
+        <>
+          <form onSubmit={onSubmit} className={google ? "mt-4 space-y-3" : "mt-6 space-y-3"}>
+            {mode === "signup" && (
+              <Field label="Name" name="name" type="text" autoComplete="name" />
+            )}
+            <Field label="Email" name="email" type="email" autoComplete="email" />
+            <Field
+              label="Password"
+              name="password"
+              type="password"
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
+              minLength={8}
+            />
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <button
+              type="submit"
+              disabled={pending}
+              className="w-full rounded-lg bg-accent px-4 py-2.5 font-medium text-white hover:opacity-90 disabled:opacity-60"
+            >
+              {pending ? "…" : mode === "signup" ? "Create account" : "Log in"}
+            </button>
+          </form>
+          <p className="mt-4 text-sm text-muted">
+            {mode === "signup" ? "Already have an account? " : "New to Klassdeck? "}
+            <button
+              type="button"
+              className="font-medium text-accent"
+              onClick={() => {
+                setMode(mode === "signup" ? "login" : "signup");
+                setError(null);
+              }}
+            >
+              {mode === "signup" ? "Log in" : "Create an account"}
+            </button>
+          </p>
+        </>
+      )}
     </div>
   );
 }
