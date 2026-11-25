@@ -4,6 +4,83 @@ Why things are the way they are. Architecture decisions are presented to the own
 (options, trade-offs, recommendation) and recorded here once the owner has chosen.
 Newest first.
 
+## 2026-11-25: Google-only sign-in on the live site
+
+- **Context:** Measured under local workerd, Better Auth's password hash (scrypt N=16384, r=16)
+  costs ~41 ms of CPU; the Workers free plan allows 10 ms per request, so email sign-up and
+  sign-in would fail with error 1102.
+- **Options:**
+  1. Workers Paid (~$5/month): no code change, default password security.
+  2. Google sign-in only on the live site: stays free; students need a Google account.
+  3. Lighter hashing settings: stays free; weaker protection if the database leaks (users are minors).
+- **Recommended:** 1.
+- **Chosen by the owner:** 2, Google-only for now.
+- **Consequences:** `EMAIL_PASSWORD_LOGIN` (default on) controls `emailAndPassword.enabled` and the
+  login form; `wrangler.jsonc` sets it to "off" for the deployed Worker, and `.dev.vars` sets "on"
+  for local preview. The Google OAuth client must exist before the site goes live. Revisit by
+  moving to Workers Paid and removing the variable.
+
+## 2026-11-24: Running on Cloudflare Workers
+
+- **Context:** Implements the "Hosting" choice (Workers through OpenNext; the database itself was moved to
+  Neon in a separate decision). Several parts of the app assumed one long-lived Node process.
+- **Choices:**
+  - **Adapter:** `@opennextjs/cloudflare` 1.20.18 and `wrangler` 4.168, `nodejs_compat` and
+    `global_fetch_strictly_public`. No incremental cache or R2 bucket: every page is dynamic.
+  - **Database connection:** on Workers, one postgres.js client per request (a Worker can't
+    reuse a socket across requests), through the `HYPERDRIVE` binding, falling back to
+    `DATABASE_URL`. `db` stays a module-level export (a proxy that picks the request's client),
+    so Better Auth's adapter and `src/core/` didn't change. Prepared statements stay on through
+    Hyperdrive (Cloudflare's postgres.js guide warns that `prepare: false` can make queries hang
+    in Hyperdrive's transaction pooling); `prepare: false` is used only for a direct connection to
+    a transaction pooler on port 6543 (Supabase's guidance). Sources: Cloudflare Hyperdrive
+    "Postgres.js" and "Connect to PostgreSQL", Supabase "Postgres.js" (checked 2026-11-24); the
+    vendors disagree, so this was verified locally only, not against a hosted database.
+  - **CIMD transport on Workers:** `@better-auth/cimd` requires a transport that resolves DNS
+    once, rejects special-use addresses and pins the connection (its `CimdOptions` type docs,
+    1.7.28). Workers expose no DNS or socket control, so `src/lib/cimd-transport.ts` uses fetch
+    with HTTPS-only, GET/HEAD-only, Better Auth's own RFC 6890 host classifier
+    (`@better-auth/core/utils/host`) plus private-name suffixes, `redirect: "manual"`, a 10 s
+    timeout and a 64 KB body cap; the plugin adds its own 5 KB cap, timeout and redirect check.
+    Gap: a public name that resolves to a private address isn't caught; on Workers the request
+    leaves from Cloudflare's edge, where private ranges reach none of our networks. Node keeps
+    Better Auth's pinning transport.
+  - **Rate limits in Postgres (owner's choice):** MCP saves use an hourly counter table
+    `mcp_write_limit (user_id, window_start, count)`, one atomic upsert per save, old rows pruned
+    occasionally; a burst across an hour boundary can reach 2× the limit. Better Auth's own
+    limits use its `database` storage (`rate_limit` table), keyed by `cf-connecting-ip`.
+  - **Worker size:** the free plan allows 3 MB compressed. Turbopack copies Better Auth into every
+    route that imports it, so the three discovery routes became one `/.well-known/[...path]`
+    route (3.16 MB → 2.91 MB). `serverExternalPackages` would shrink it further, but OpenNext then
+    needs symlinks, which fail on Windows without Developer Mode.
+  - **Deploy script:** OpenNext copies local `.env*` values into the bundle
+    (`.open-next/cloudflare/next-env.mjs`); `npm run deploy` empties that file before uploading,
+    so the dev `BETTER_AUTH_SECRET` never ships. Worker secrets take precedence at runtime anyway.
+- **Measured:** password hashing (scrypt N=16384, r=16, native `node:crypto` in workerd) costs
+  ~41 ms CPU per hash, 4× the free plan's 10 ms. Not changed; the owner decides between Workers
+  Paid and lighter hashing.
+
+## 2026-11-24: Database on Neon instead of Supabase
+
+- **Context:** The owner's Supabase account already had two active free projects (the free
+  limit), so a Klassdeck project would have meant pausing another app or paying for Pro.
+- **Options:**
+  1. Pause another Supabase project: free, but that app goes offline.
+  2. Supabase Pro (~$25/month): no limit, never pauses.
+  3. Neon Free: no project-count problem; compute sleeps after 5 minutes idle and wakes on the
+     next connection instead of pausing for good after a week; works with Cloudflare Hyperdrive
+     the same way, so no code change.
+  4. A schema inside another app's Supabase project: shares space, password and downtime.
+- **Recommended:** 3.
+- **Chosen by the owner:** 3, Neon. App hosting stays on Cloudflare Workers (see "Hosting").
+- **Consequences:** Neon project `klassdeck` (`dark-wildflower-99678854`) in `aws-eu-central-1`
+  (Frankfurt), Free plan, linked through the git-ignored `.neon` file. Per Neon's guidance:
+  Hyperdrive points at the **direct** (non-pooled) connection string, since Hyperdrive pools
+  itself; migrations also use the direct string; the app keeps postgres.js and Drizzle. On the
+  Free plan, running out of CU-hours suspends the database until the next month. Sources: Neon
+  `neon` and `neon-postgres` agent skills (commit `d3601d9`, 2026-11-24).
+- **Supersedes:** the Supabase part of "Hosting" below.
+
 ## 2026-11-24: Hosting
 
 - **Context:** Klassdeck needs a public HTTPS URL so Claude.ai and ChatGPT connectors can reach

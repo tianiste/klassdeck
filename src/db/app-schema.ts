@@ -5,6 +5,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
@@ -74,3 +75,19 @@ export const setsRelations = relations(sets, ({ many, one }) => ({
 export const questionsRelations = relations(questions, ({ one }) => ({
   set: one(sets, { fields: [questions.setId], references: [sets.id] }),
 }));
+
+/**
+ * MCP write rate limit: one counter per user per clock hour. Shared by every server
+ * instance (Workers isolates don't share memory). Rows older than two hours are pruned.
+ */
+export const mcpWriteLimit = pgTable(
+  "mcp_write_limit",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    windowStart: timestamp("window_start").notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.windowStart] })],
+);

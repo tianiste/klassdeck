@@ -11,7 +11,7 @@ import {
   toQuestionOutput,
   updateQuestion,
 } from "@/core/sets";
-import { checkWriteLimit } from "./rate-limit";
+import { checkWriteLimit } from "@/core/write-limit";
 
 export type McpCaller = {
   userId: string;
@@ -87,7 +87,7 @@ export function createKlassdeckServer(caller: McpCaller): McpServer {
     },
     (input) =>
       guarded(async () => {
-        const limit = checkWriteLimit(caller.userId);
+        const limit = await checkWriteLimit(caller.userId);
         if (limit) return fail(limit);
         const created = await createSet(caller.userId, input, {
           source: "mcp",
@@ -116,7 +116,7 @@ export function createKlassdeckServer(caller: McpCaller): McpServer {
     },
     ({ set_id, questions }) =>
       guarded(async () => {
-        const limit = checkWriteLimit(caller.userId);
+        const limit = await checkWriteLimit(caller.userId);
         if (limit) return fail(limit);
         return json(await addQuestions(caller.userId, set_id, questions));
       }),
@@ -142,7 +142,7 @@ export function createKlassdeckServer(caller: McpCaller): McpServer {
     },
     ({ question_id, question }) =>
       guarded(async () => {
-        const limit = checkWriteLimit(caller.userId);
+        const limit = await checkWriteLimit(caller.userId);
         if (limit) return fail(limit);
         const r = await updateQuestion(caller.userId, question_id, question);
         return json({ id: r.id, set_id: r.setId, url: r.url, version: r.version });
