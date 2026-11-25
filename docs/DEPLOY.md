@@ -48,8 +48,12 @@ npx wrangler login
 ```
 
 ```powershell
-npx wrangler hyperdrive create klassdeck-db --connection-string="<direct connection string>"
+npx wrangler hyperdrive create klassdeck-db --caching-disabled --connection-string="<direct connection string>"
 ```
+
+Keep `--caching-disabled`. With caching on, Hyperdrive serves some reads from a 60-second cache
+that isn't cleared by writes, so a set an AI just saved could look missing, and Better Auth's
+rate-limit rows can fail on a cached "not found".
 
 The command prints an `id`. Put it in `wrangler.jsonc` under `hyperdrive[0].id`, replacing
 `00000000000000000000000000000000`, and commit that change (the id is not a secret).
