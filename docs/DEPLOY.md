@@ -1,10 +1,62 @@
 # Deploying Klassdeck
 
-Klassdeck runs as a Cloudflare Worker (through the OpenNext adapter) with a Postgres database
-on Neon, reached through Cloudflare Hyperdrive. Local development doesn't need any of this:
+Klassdeck runs on **Vercel** (Next.js functions in `fra1`, Frankfurt) with its Postgres database on
+**Neon** (`klassdeck`, `aws-eu-central-1`). Local development doesn't need any of this:
 `npm run dev` keeps using the embedded Postgres in `./.data`.
 
+The Cloudflare Workers setup further down ("Cloudflare Workers (previous host)") still works but hit
+the free plan's 10 ms CPU limit; see `docs/decisions.md`.
+
 Commands below are for PowerShell on Windows, run from the project folder.
+
+## Vercel
+
+The database tables already exist on Neon (see "2. Create the tables" below to run new migrations).
+
+1. Sign in and link the project (opens a browser once):
+
+   ```powershell
+   npx vercel login
+   ```
+
+   ```powershell
+   npx vercel link
+   ```
+
+2. Set the environment variables for Production. Each command asks for the value:
+   - `DATABASE_URL`: Neon's **pooled** connection string (`neon connection-string --pooled`). The
+     app runs on short-lived serverless instances, so it goes through Neon's connection pooler.
+   - `BETTER_AUTH_URL`: the site's address, e.g. `https://klassdeck.vercel.app` (no trailing slash).
+   - `BETTER_AUTH_SECRET`: a new random value (`openssl rand -base64 32`).
+   - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`: the same Google OAuth client as before.
+
+   ```powershell
+   npx vercel env add DATABASE_URL production
+   ```
+
+   Leave `EMAIL_PASSWORD_LOGIN` unset: on Vercel email and password sign-in works (the CPU limit
+   that forced Google-only on Workers doesn't apply).
+
+3. In Google Cloud Console, add `<BETTER_AUTH_URL>/api/auth/callback/google` to the OAuth client's
+   authorized redirect URIs.
+
+4. Deploy:
+
+   ```powershell
+   npx vercel deploy --prod
+   ```
+
+5. Check it: open `<BETTER_AUTH_URL>/login`, run
+   `node scripts/smoke-mcp.mjs <BETTER_AUTH_URL>` (a full pass, since email sign-up works), and
+   add `<BETTER_AUTH_URL>/mcp` as a custom connector in Claude.ai.
+
+`vercel.json` pins the functions to `fra1`. Client IPs for rate limiting come from
+`x-vercel-forwarded-for` (see `src/lib/auth-options.ts`).
+
+# Cloudflare Workers (previous host)
+
+Klassdeck can also run as a Cloudflare Worker (through the OpenNext adapter) with Neon reached
+through Cloudflare Hyperdrive.
 
 ## What you need
 
