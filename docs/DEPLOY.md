@@ -86,9 +86,11 @@ private key").
 If `wrangler secret put` says the Worker doesn't exist yet, run step 5 once first, then set the
 secrets and deploy again.
 
-### Google sign-in (optional)
+### Google sign-in (required for the live site)
 
-Without these two secrets the login page offers email and password only.
+The deployed Worker turns email and password sign-in off (`EMAIL_PASSWORD_LOGIN = "off"` in
+`wrangler.jsonc`, see "CPU limit" below), so Google is the only way to sign in. Without these two
+secrets nobody can sign in, and the login page says sign-in isn't available.
 
 1. In [Google Cloud Console](https://console.cloud.google.com/): create or pick a project, then
    **APIs & Services → OAuth consent screen**. Set the app name (Klassdeck), a support email,
@@ -160,9 +162,13 @@ The free plan allows 10 ms of CPU per request. Measured locally under workerd (2
 | Ordinary pages and discovery documents (warm) | ≤ 5–10 ms (wall time, so an upper bound) |
 
 So sign-up and sign-in are about 4–5× over the free limit, and ordinary pages are close to it.
-Cloudflare may reject those requests with error 1102 ("Worker exceeded resource limits"). If that
-happens, either switch to Workers Paid (from $5/month; 30 s CPU by default), or lower the hashing
-cost (a security trade-off, to be decided by the owner). See `docs/decisions.md`.
+Cloudflare may reject those requests with error 1102 ("Worker exceeded resource limits").
+
+Decision (2026-11-25): the live site is **Google-only** for now. `wrangler.jsonc` sets
+`EMAIL_PASSWORD_LOGIN = "off"`, which turns off the email sign-up and sign-in endpoints, not just
+the form; Google sign-in hashes no password. To bring email and password back, switch to Workers
+Paid (from $5/month; 30 s CPU by default) and remove that variable. Local `npm run dev` and
+`npm run preview` (via `.dev.vars`) keep email and password on so the smoke test works.
 
 ## Local Worker preview
 

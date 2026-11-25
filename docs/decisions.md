@@ -4,6 +4,22 @@ Why things are the way they are. Architecture decisions are presented to the own
 (options, trade-offs, recommendation) and recorded here once the owner has chosen.
 Newest first.
 
+## 2026-11-25: Google-only sign-in on the live site
+
+- **Context:** Measured under local workerd, Better Auth's password hash (scrypt N=16384, r=16)
+  costs ~41 ms of CPU; the Workers free plan allows 10 ms per request, so email sign-up and
+  sign-in would fail with error 1102.
+- **Options:**
+  1. Workers Paid (~$5/month): no code change, default password security.
+  2. Google sign-in only on the live site: stays free; students need a Google account.
+  3. Lighter hashing settings: stays free; weaker protection if the database leaks (users are minors).
+- **Recommended:** 1.
+- **Chosen by the owner:** 2, Google-only for now.
+- **Consequences:** `EMAIL_PASSWORD_LOGIN` (default on) controls `emailAndPassword.enabled` and the
+  login form; `wrangler.jsonc` sets it to "off" for the deployed Worker, and `.dev.vars` sets "on"
+  for local preview. The Google OAuth client must exist before the site goes live. Revisit by
+  moving to Workers Paid and removing the variable.
+
 ## 2026-11-24: Running on Cloudflare Workers
 
 - **Context:** Implements the "Hosting" choice (Workers through OpenNext; the database itself was moved to
