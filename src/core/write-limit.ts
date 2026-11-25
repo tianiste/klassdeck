@@ -25,9 +25,14 @@ export async function checkWriteLimit(userId: string, now = Date.now()): Promise
     })
     .returning({ count: mcpWriteLimit.count });
 
-  // Occasionally drop old windows; cheap, and no scheduled job needed.
+  // Occasionally drop old windows; cheap, and no scheduled job needed. Best effort:
+  // a failed cleanup must not turn an admitted write into an error.
   if (Math.random() < 0.02) {
-    await db.delete(mcpWriteLimit).where(lt(mcpWriteLimit.windowStart, new Date(now - 2 * WINDOW_MS)));
+    try {
+      await db.delete(mcpWriteLimit).where(lt(mcpWriteLimit.windowStart, new Date(now - 2 * WINDOW_MS)));
+    } catch (err) {
+      console.error("[write-limit] cleanup of old windows failed", err);
+    }
   }
 
   if (row.count > MAX_WRITES) {
