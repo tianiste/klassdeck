@@ -4,6 +4,28 @@ Why things are the way they are. Architecture decisions are presented to the own
 (options, trade-offs, recommendation) and recorded here once the owner has chosen.
 Newest first.
 
+## 2026-11-25: App hosting moves from Cloudflare Workers to Vercel
+
+- **Context:** On the Workers free plan (10 ms CPU per request) the live site failed with error
+  1102. `wrangler tail` on 2026-11-25 showed warm pages at 10–30 ms CPU and the first request on a
+  new isolate at 250–725 ms (loading Next.js and Better Auth); 2 of 25 requests were killed. Code
+  changes can't bring Next.js + Better Auth under 10 ms.
+- **Options:**
+  1. Workers Paid (~$5/month): no code change, 30 s CPU per request.
+  2. Vercel free (Hobby) plan: Next.js runs natively with no CPU cap of this kind; Neon stays;
+     Hobby is for non-commercial use, which fits a free school app.
+  3. Stay on the Workers free plan and accept failures.
+- **Recommended:** 1.
+- **Chosen by the owner:** 2, Vercel.
+- **Consequences:** Functions run in `fra1` (Frankfurt, next to Neon `aws-eu-central-1`). The app
+  connects with Neon's pooled `DATABASE_URL` from Vercel env (no Hyperdrive). Client IP for rate
+  limits comes from `x-vercel-forwarded-for`, which Vercel sets from its own overwritten
+  `X-Forwarded-For` ([Vercel request headers](https://vercel.com/docs/headers/request-headers),
+  checked 2026-11-25); `cf-connecting-ip` is used only on Workers. Email and password sign-in can
+  be on again (the CPU reason for Google-only is gone). The Workers deploy files stay in the repo
+  until the Vercel site is verified; the Workers site is then retired by the owner.
+- **Supersedes:** "Running on Cloudflare Workers" and the CPU reason in "Google-only sign-in".
+
 ## 2026-11-25: Google-only sign-in on the live site
 
 - **Context:** Measured under local workerd, Better Auth's password hash (scrypt N=16384, r=16)

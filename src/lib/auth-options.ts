@@ -22,6 +22,21 @@ export function googleCredentials(): { clientId: string; clientSecret: string } 
 }
 
 /**
+ * The header that holds the real client IP, which the rate limiter keys on. Only headers the
+ * platform sets itself and a client can't spoof:
+ * - Cloudflare Workers (detected from the runtime itself, not an env var): `cf-connecting-ip`,
+ *   set and overwritten on every request.
+ * - Everywhere else, i.e. Vercel: `x-vercel-forwarded-for`, Vercel's copy of the
+ *   X-Forwarded-For it overwrites (https://vercel.com/docs/headers/request-headers).
+ *   `cf-connecting-ip` is never trusted there: a client could set it on a direct request.
+ * Local dev has no trusted header either way; Better Auth only rate-limits in production.
+ */
+function clientIpHeaders(): string[] {
+  const onWorkers = typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
+  return onWorkers ? ["cf-connecting-ip"] : ["x-vercel-forwarded-for"];
+}
+
+/**
  * Email and password sign-in, on unless EMAIL_PASSWORD_LOGIN is "off". The deployed
  * Worker turns it off (wrangler.jsonc `vars`): password hashing needs ~40 ms of CPU and
  * the Workers free plan allows 10 ms per request, so production is Google-only for now.
@@ -46,11 +61,10 @@ export const createAuthOptions = () => ({
   // Better Auth enables rate limiting in production only.
   rateLimit: { storage: "database" },
   advanced: {
-    // Cloudflare sets this header on every request and overwrites any client value.
-    // Production runs only on Cloudflare Workers (docs/DEPLOY.md). Running `next start`
-    // behind another proxy is unsupported: add that proxy's trusted, overwritten
-    // client-IP header here first, or every client shares one rate-limit bucket.
-    ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] },
+    // Production runs on Vercel (or Cloudflare Workers); see clientIpHeaders(). Running
+    // `next start` behind another proxy is unsupported: add that proxy's trusted, overwritten
+    // client-IP header first, or every client shares one rate-limit bucket.
+    ipAddress: { ipAddressHeaders: clientIpHeaders() },
   },
   emailAndPassword: {
     enabled: emailPasswordEnabled(),
