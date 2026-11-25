@@ -41,7 +41,13 @@ function usesTransactionPooler(url: string): boolean {
 }
 
 function connect(url: string, max: number) {
-  return postgres(url, { max, prepare: !usesTransactionPooler(url) });
+  return postgres(url, {
+    max,
+    prepare: !usesTransactionPooler(url),
+    // Serverless instances (Vercel) can sit idle between requests; close idle sockets so they
+    // don't pile up on the database side. Reconnecting is cheap with Neon's pooled endpoint.
+    idle_timeout: 20,
+  });
 }
 
 /** The Cloudflare request context, or undefined outside a Worker (e.g. `next dev`). */
