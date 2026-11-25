@@ -24,13 +24,16 @@ export function googleCredentials(): { clientId: string; clientSecret: string } 
 /**
  * The header that holds the real client IP, which the rate limiter keys on. Only headers the
  * platform sets itself and a client can't spoof:
- * - Vercel (VERCEL=1): `x-vercel-forwarded-for`, Vercel's copy of the X-Forwarded-For it
- *   overwrites (https://vercel.com/docs/headers/request-headers).
- * - Cloudflare Workers: `cf-connecting-ip`, set and overwritten on every request.
- * Anything else (local dev) has no trusted header; Better Auth only rate-limits in production.
+ * - Cloudflare Workers (detected from the runtime itself, not an env var): `cf-connecting-ip`,
+ *   set and overwritten on every request.
+ * - Everywhere else, i.e. Vercel: `x-vercel-forwarded-for`, Vercel's copy of the
+ *   X-Forwarded-For it overwrites (https://vercel.com/docs/headers/request-headers).
+ *   `cf-connecting-ip` is never trusted there: a client could set it on a direct request.
+ * Local dev has no trusted header either way; Better Auth only rate-limits in production.
  */
 function clientIpHeaders(): string[] {
-  return process.env.VERCEL === "1" ? ["x-vercel-forwarded-for"] : ["cf-connecting-ip"];
+  const onWorkers = typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
+  return onWorkers ? ["cf-connecting-ip"] : ["x-vercel-forwarded-for"];
 }
 
 /**
