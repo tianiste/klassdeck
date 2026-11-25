@@ -46,10 +46,18 @@ export function LoginForm({ google, emailPassword }: { google: boolean; emailPas
     const email = String(form.get("email"));
     const password = String(form.get("password"));
 
-    const res =
-      mode === "signup"
-        ? await authClient.signUp.email({ email, password, name: String(form.get("name")) })
-        : await authClient.signIn.email({ email, password });
+    let res;
+    try {
+      res =
+        mode === "signup"
+          ? await authClient.signUp.email({ email, password, name: String(form.get("name")) })
+          : await authClient.signIn.email({ email, password });
+    } catch {
+      // Network failure: the request rejects instead of returning an error.
+      setError("Couldn't reach Klassdeck. Check your connection and try again.");
+      setPending(false);
+      return;
+    }
 
     if (res.error) {
       setError(res.error.message ?? "Something went wrong.");
@@ -68,17 +76,25 @@ export function LoginForm({ google, emailPassword }: { google: boolean; emailPas
     // and Better Auth resumes the connect flow after Google's callback (consent → AI app).
     // On failure Google's callback comes back to this same page, query included.
     const here = window.location.pathname + window.location.search;
-    const res = await authClient.signIn.social({
-      provider: "google",
-      callbackURL: safeNext(params.get("next")),
-      errorCallbackURL: here,
-    });
+    let res;
+    try {
+      res = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: safeNext(params.get("next")),
+        errorCallbackURL: here,
+      });
+    } catch {
+      // Network failure: the request rejects instead of returning an error.
+      setError("Couldn't reach Klassdeck. Check your connection and try again.");
+      setPending(false);
+      return;
+    }
     if (res.error) {
       setError(res.error.message ?? "Something went wrong.");
       setPending(false);
       return;
     }
-    followRedirect(res.data);
+    if (!followRedirect(res.data)) setPending(false);
   }
 
   return (
